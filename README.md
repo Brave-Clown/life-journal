@@ -10,7 +10,8 @@ A self-hosted, password-protected life documentation tool. Track your daily life
 - **Side-by-Side** — Place fields next to each other
 - **Drag & Drop** — Reorder fields in settings
 - **Auto-Save** — Saves every 30 seconds when you have content
-- **Export** — Download entries as TXT or PDF
+- **Export** — Single-day TXT or styled PDF, plus mass export of all entries
+- **Import** — Restore from JSON backups without overwriting existing entries
 - **Date Navigation** — Browse past entries with year filter and sort
 - **Self-Hosted** — Your data stays on your server in simple JSON files
 - **Security Hardened** — CSP headers, no CORS, HttpOnly cookies, path traversal protection
@@ -215,7 +216,29 @@ The entry must be saved to the server first. If you just typed into fields witho
 
 This is normal if the healthcheck interval hasn't passed yet. If you can access the journal in your browser, the app is working fine.
 
+## Export & Import
+
+Click the purple **"All"** button in the header to open the export/import panel.
+
+### JSON Backup (recommended for backups)
+
+**Export**: Downloads a single `.json` file containing every entry with its field configuration snapshot. This is a complete backup — use it for migration, disaster recovery, or moving to a new server.
+
+**Import**: Restores entries from a JSON backup file. Existing entries are never overwritten — only new dates are imported. Your current field/section configuration is not changed by importing.
+
+### Text Export
+
+**Single combined TXT**: One readable file with all entries in chronological order, separated by date headers. Good for reading through your journal outside the app.
+
+**Individual TXT files**: One file per day. If you have more than 30 entries, you'll be asked to confirm before downloading. Useful for archiving individual days.
+
+### Single-Day Export
+
+The **TXT** and **PDF** buttons in the header export only the current day's entry. The PDF export produces a print-optimized layout with colored section accents.
+
 ## Backup
+
+For server-level backups, use ZFS snapshots or copy the data directory:
 
 ```bash
 # Snapshot (ZFS — instant, zero-downtime)
@@ -224,6 +247,8 @@ zfs snapshot tank/apps/life-journal@backup-$(date +%Y%m%d)
 # Or manual copy
 cp -r /mnt/tank/apps/life-journal/entries/ ./backup/
 ```
+
+For portable backups you can restore anywhere, use the **JSON Backup** export from the app itself.
 
 ## Multiple Users
 
