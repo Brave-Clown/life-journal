@@ -745,9 +745,11 @@
                           const prevField = fieldIdx > 0 ? sectionFields[fieldIdx - 1] : null;
                           const prevIsSideBySide = prevField?.sideBySide;
                           const canBeSideBySide = !isFirstInSection && !prevIsSideBySide;
+                          const subFields = fieldConfig.filter(f => f.parent === field.id);
 
                           return (
-                          <div key={field.id}
+                          <React.Fragment key={field.id}>
+                          <div
                             draggable
                             onDragStart={() => handleDragStart(field.id)}
                             onDragOver={handleDragOver}
@@ -779,6 +781,11 @@
                                       paired with {prevField.label}
                                     </span>
                                   )}
+                                  {subFields.length > 0 && (
+                                    <span style={{ fontSize: '11px', color: 'var(--accent-purple)', background: 'rgba(167,139,250,0.15)', padding: '1px 6px', borderRadius: '4px' }}>
+                                      {subFields.length} sub-field{subFields.length > 1 ? 's' : ''}
+                                    </span>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -796,6 +803,45 @@
                                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '2px 4px' }}>🗑️</button>
                             </div>
                           </div>
+                          {/* Sub-fields listed under their parent */}
+                          {subFields.map(sub => (
+                            <div key={sub.id}
+                              style={{
+                                background: 'var(--bg-input)', borderRadius: '6px', padding: '8px 12px', marginBottom: '4px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                marginLeft: '28px', borderLeft: '2px solid var(--accent-purple)',
+                                transition: 'background 0.15s'
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-input)'}
+                            >
+                              <div style={{ flex: 1 }}>
+                                {editingField === sub.id ? (
+                                  <input type="text" defaultValue={sub.label} autoFocus
+                                    onBlur={(e) => saveFieldEdit(sub.id, e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && saveFieldEdit(sub.id, e.target.value)}
+                                    style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-focus)', borderRadius: '4px', padding: '4px 8px', width: '100%', color: 'var(--text-primary)', outline: 'none' }} />
+                                ) : (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>↳</span>
+                                    <span style={{ fontWeight: 500, fontSize: '14px' }}>{sub.label}</span>
+                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>({sub.rows}r, sub-field of {field.label})</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '12px' }}>
+                                <select value={sub.rows || 1} onChange={(e) => updateFieldRows(sub.id, parseInt(e.target.value))} onClick={e => e.stopPropagation()}
+                                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '4px', padding: '2px 4px', fontSize: '12px', color: 'var(--text-primary)' }}>
+                                  {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                                </select>
+                                <button onClick={() => setEditingField(sub.id)} title="Rename"
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '2px 4px' }}>✏️</button>
+                                <button onClick={() => removeField(sub.id)} title="Delete sub-field"
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '2px 4px' }}>🗑️</button>
+                              </div>
+                            </div>
+                          ))}
+                          </React.Fragment>
                           );
                         })}
                       </div>
