@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Life Journal</title>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0f1117;
+      --bg-secondary: #181a24;
+      --bg-card: #1e2030;
+      --bg-input: #262838;
+      --border-subtle: #2a2d3e;
+      --border-focus: #5b8af5;
+      --text-primary: #e2e4ed;
+      --text-secondary: #8b8fa3;
+      --text-muted: #5c6078;
+      --accent-blue: #5b8af5;
+      --accent-purple: #a78bfa;
+      --accent-green: #6ee7a0;
+      --accent-red: #f87171;
+      --accent-pink: #f472b6;
+      --accent-yellow: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+    textarea, input, select, button { font-family: inherit; }
+    textarea {
+      white-space: pre-wrap !important;
+      word-wrap: break-word !important;
+      overflow-wrap: break-word !important;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    /* Date input styling */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.7);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    // ─── Storage API wrapper ───
+    window.storage = {
+      async list(prefix) {
+        const params = prefix ? `?prefix=${encodeURIComponent(prefix)}` : '';
+        const res = await fetch(`/api/storage/list${params}`);
+        if (!res.ok) throw new Error('Failed to list');
+        return await res.json();
+      },
+      async get(key) {
+        const res = await fetch(`/api/storage/get/${encodeURIComponent(key)}`);
+        if (!res.ok) throw new Error('Failed to get');
+        return await res.json();
+      },
+      async set(key, value) {
+        const res = await fetch('/api/storage/set', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, value })
+        });
+        if (!res.ok) throw new Error('Failed to set');
+        return await res.json();
+      },
+      async delete(key) {
+        const res = await fetch(`/api/storage/delete/${encodeURIComponent(key)}`, {
+          method: 'DELETE'
+        });
+        if (!res.ok) throw new Error('Failed to delete');
+        return await res.json();
+      }
+    };
+
+    // ─── SVG Icon components ───
+    const Icon = ({ d, size = 20 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {Array.isArray(d) ? d.map((p, i) => <path key={i} d={p}/>) : <path d={d}/>}
+      </svg>
+    );
+    const SaveIcon = ({ size }) => <Icon size={size} d={["M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z","M17 21v-8H7v8","M7 3v5h8"]} />;
+    const MenuIcon = ({ size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>;
+    const XIcon = ({ size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+    const ChevLeft = ({ size }) => <Icon size={size} d="M15 18l-6-6 6-6" />;
+    const ChevRight = ({ size }) => <Icon size={size} d="M9 18l6-6-6-6" />;
+    const DownloadIcon = ({ size }) => <Icon size={size} d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4","M7 10l5 5 5-5","M12 15V3"]} />;
+    const TrashIcon = ({ size }) => <Icon size={size} d={["M3 6h18","M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6","M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"]} />;
+    const GearIcon = ({ size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>;
+
+    // ─── Helper: escape HTML for safe PDF export ───
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // ─── Default field configuration ───
+    const DEFAULT_FIELDS = [
+      { id: 'weight', label: 'Weight', rows: 1, section: 'personal' },
+      { id: 'health', label: 'Health', rows: 1, section: 'personal' },
+      { id: 'exerciseDaysYes', label: 'Exercise Days Yes', rows: 1, section: 'personal', sideBySide: true },
+      { id: 'exerciseDaysNo', label: 'Exercise Days No', rows: 1, section: 'personal' },
+      { id: 'sleep', label: 'Sleep', rows: 1, section: 'personal' },
+      { id: 'food', label: 'Food', rows: 1, section: 'personal' },
+      { id: 'drinks', label: 'Drinks', rows: 1, section: 'personal' },
+      { id: 'daysSober', label: 'Days Sober', rows: 1, section: 'personal', sideBySide: true },
+      { id: 'daysNotSober', label: 'Days Not Sober', rows: 1, section: 'personal' },
+      { id: 'housework', label: 'Housework/Chores', rows: 1, section: 'personal' },
+      { id: 'homeLab', label: 'Home Lab', rows: 1, section: 'personal' },
+      { id: 'books', label: 'Books', rows: 1, section: 'personal' },
+      { id: 'movies', label: 'Movies', rows: 1, section: 'personal' },
+      { id: 'shows', label: 'Shows', rows: 1, section: 'personal' },
+      { id: 'sleepingMedia', label: 'Sleeping Media', rows: 1, section: 'personal' },
+      { id: 'anime', label: 'Anime', rows: 1, section: 'personal' },
+      { id: 'music', label: 'Music', rows: 1, section: 'personal' },
+      { id: 'purchases', label: 'Purchases', rows: 1, section: 'personal' },
+      { id: 'games', label: 'Games', rows: 1, section: 'personal' },
+      { id: 'friendEvents', label: 'Friend Events', rows: 1, section: 'personal' },
+      { id: 'familyEvents', label: 'Family Events', rows: 1, section: 'personal' },
+      { id: 'cheryl', label: 'Cheryl', rows: 2, section: 'people' },
+      { id: 'cherylHouses', label: 'Houses', rows: 1, section: 'people', parent: 'cheryl' },
+      { id: 'cherylLand', label: 'Land', rows: 1, section: 'people', parent: 'cheryl' },
+      { id: 'cherylCompany', label: 'Company', rows: 1, section: 'people', parent: 'cheryl' },
+      { id: 'mia', label: 'Mia', rows: 2, section: 'people' },
+      { id: 'patrick', label: 'Patrick', rows: 2, section: 'people' },
+      { id: 'louis', label: 'Louis', rows: 2, section: 'people' },
+      { id: 'mom', label: 'Mom', rows: 2, section: 'people' },
+      { id: 'dad', label: 'Dad', rows: 2, section: 'people' },
+      { id: 'zach', label: 'Zach', rows: 2, section: 'people' },
+      { id: 'austin', label: 'Austin', rows: 2, section: 'people' },
+      { id: 'daniel1', label: 'Daniel', rows: 2, section: 'people' },
+      { id: 'fae', label: 'Fae', rows: 2, section: 'people' },
+      { id: 'brenna', label: 'Brenna', rows: 2, section: 'people' },
+      { id: 'daniel2', label: 'Daniel', rows: 2, section: 'people' },
+      { id: 'grandma', label: 'Grandma', rows: 2, section: 'people' },
+      { id: 'extendedFamily', label: 'Extended Family', rows: 2, section: 'people' },
+      { id: 'bulk', label: 'Bulk', rows: 3, section: 'reflections' },
+      { id: 'politics', label: 'Politics', rows: 3, section: 'reflections' },
+      { id: 'news', label: 'News', rows: 3, section: 'reflections' },
+      { id: 'financial', label: 'Financial', rows: 3, section: 'reflections' },
+      { id: 'workTravelActivities', label: 'Work / Travel / Activities', rows: 3, section: 'reflections' },
+      { id: 'study', label: 'Study', rows: 3, section: 'reflections' },
+      { id: 'issues', label: 'Issues', rows: 3, section: 'reflections' },
+      { id: 'miscThoughts', label: 'Misc Thoughts or Feelings', rows: 4, section: 'reflections' }
+    ];
+
+    const DEFAULT_SECTIONS = [
+      { id: 'personal', label: 'Personal Metrics', color: 'blue' },
+      { id: 'people', label: 'People', color: 'purple' },
+      { id: 'reflections', label: 'Reflections & Thoughts', color: 'green' }
+    ];
+
+    const SECTION_COLORS = {
+      blue: { heading: '#5b8af5', border: '#2a3a6e' },
+      purple: { heading: '#a78bfa', border: '#3d2a6e' },
+      green: { heading: '#6ee7a0', border: '#1a4a32' },
+      yellow: { heading: '#fbbf24', border: '#4a3a1a' },
+      red: { heading: '#f87171', border: '#4a1a1a' },
+      pink: { heading: '#f472b6', border: '#4a1a3a' }
+    };
+
+    // ═══════════════════════════════════════
+    // MAIN COMPONENT
+    // ═══════════════════════════════════════
+    function LifeJournal() {
+      const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+      const [entries, setEntries] = useState({});
+      const [showSidebar, setShowSidebar] = useState(false);
+      const [savedDates, setSavedDates] = useState([]);
+      const [saveStatus, setSaveStatus] = useState('');
+      const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+      const [sortOrder, setSortOrder] = useState('desc');
+      const [showSettings, setShowSettings] = useState(false);
+      const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+      const [showMobileActions, setShowMobileActions] = useState(false);
+      const [settings, setSettings] = useState({ openToYesterday: false });
+      const [fieldConfig, setFieldConfig] = useState(DEFAULT_FIELDS);
+      const [sections, setSections] = useState(DEFAULT_SECTIONS);
+      const [editingField, setEditingField] = useState(null);
+      const [newFieldName, setNewFieldName] = useState('');
+      const [newFieldRows, setNewFieldRows] = useState(1);
+      const [newFieldSection, setNewFieldSection] = useState('personal');
+      const [newFieldSideBySide, setNewFieldSideBySide] = useState(false);
+      const [newFieldParent, setNewFieldParent] = useState('');
+      const [draggedField, setDraggedField] = useState(null);
+      const [newSectionName, setNewSectionName] = useState('');
+      const [newSectionColor, setNewSectionColor] = useState('blue');
+      const [isLoading, setIsLoading] = useState(true);
+
+      // Refs for auto-save to avoid stale closures
+      const entriesRef = useRef(entries);
+      const currentDateRef = useRef(currentDate);
+      const fieldConfigRef = useRef(fieldConfig);
+      entriesRef.current = entries;
+      currentDateRef.current = currentDate;
+      fieldConfigRef.current = fieldConfig;
+
+      // ─── Load entries (fetch list + all data) ───
+      const loadAllEntries = useCallback(async () => {
+        try {
+          const result = await window.storage.list('journal:');
+          if (result && result.keys) {
+            const dates = result.keys
+              .map(key => key.replace('journal:', ''))
+              .sort()
+              .reverse();
+            setSavedDates(dates);
+
+            // Fetch all entries in parallel instead of sequentially
+            const fetches = dates.map(async (date) => {
+              try {
+                const entryResult = await window.storage.get(`journal:${date}`);
+                return [date, JSON.parse(entryResult.value)];
+              } catch {
+                return null;
+              }
+            });
+
+            const results = await Promise.all(fetches);
+            const allEntries = {};
+            for (const r of results) {
+              if (r) allEntries[r[0]] = r[1];
+            }
+            setEntries(allEntries);
+          }
+        } catch (error) {
+          console.log('No previous entries found');
+        } finally {
+          setIsLoading(false);
+        }
+      }, []);
+
+      // Only update savedDates without re-fetching all entry content
+      const refreshDateList = useCallback(async () => {
+        try {
+          const result = await window.storage.list('journal:');
+          if (result && result.keys) {
+            const dates = result.keys
+              .map(key => key.replace('journal:', ''))
+              .sort()
+              .reverse();
+            setSavedDates(dates);
+          }
+        } catch {}
+      }, []);
+
+      // ─── Load settings & field config from localStorage ───
+      const loadSettings = useCallback(() => {
+        try {
+          const saved = localStorage.getItem('journal-settings');
+          if (saved) setSettings(JSON.parse(saved));
+        } catch {}
+      }, []);
+
+      const loadFieldConfig = useCallback(() => {
+        try {
+          const saved = localStorage.getItem('journal-field-config');
+          if (saved) setFieldConfig(JSON.parse(saved));
+          const savedSections = localStorage.getItem('journal-sections');
+          if (savedSections) setSections(JSON.parse(savedSections));
+        } catch {}
+      }, []);
+
+      // ─── Initial load ───
+      useEffect(() => {
+        loadAllEntries();
+        loadSettings();
+        loadFieldConfig();
+
+        try {
+          const savedSettings = localStorage.getItem('journal-settings');
+          if (savedSettings) {
+            const parsed = JSON.parse(savedSettings);
+            if (parsed.openToYesterday) {
+              const yesterday = new Date();
+              yesterday.setDate(yesterday.getDate() - 1);
+              setCurrentDate(yesterday.toISOString().split('T')[0]);
+            }
+          }
+        } catch {}
+      }, []);
+
+      // ─── Auto-save every 30s (uses refs to avoid stale closures) ───
+      useEffect(() => {
+        const autoSaveInterval = setInterval(async () => {
+          const date = currentDateRef.current;
+          const allEntries = entriesRef.current;
+          const config = fieldConfigRef.current;
+          const currentEntryData = allEntries[date];
+          const entry = currentEntryData?.data || currentEntryData;
+
+          if (!entry || !date) return;
+          const filledFields = Object.values(entry).filter(val => val && typeof val === 'string' && val.trim()).length;
+          if (filledFields < 2) return;
+
+          try {
+            const entryWithConfig = {
+              data: entry,
+              fieldConfig: config,
+              savedAt: new Date().toISOString()
+            };
+            await window.storage.set(`journal:${date}`, JSON.stringify(entryWithConfig));
+            setSaveStatus('Auto-saved');
+            setTimeout(() => setSaveStatus(''), 2000);
+          } catch {}
+        }, 30000);
+
+        return () => clearInterval(autoSaveInterval);
+      }, []); // Empty deps — uses refs
+
+      // ─── Escape key handler ───
+      useEffect(() => {
+        const handleEscape = (e) => {
+          if (e.key === 'Escape') {
+            setShowSettings(false);
+            setShowDeleteConfirm(false);
+            setShowMobileActions(false);
+          }
+        };
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+      }, []);
+
+      // ─── Auto-resize textareas when date/entries change ───
+      useEffect(() => {
+        const timer = setTimeout(() => {
+          document.querySelectorAll('textarea').forEach(ta => {
+            ta.style.height = 'auto';
+            ta.style.height = ta.scrollHeight + 'px';
+          });
+        }, 50);
+        return () => clearTimeout(timer);
+      }, [currentDate, entries]);
+
+      // ─── Settings persistence ───
+      const saveSettings = (newSettings) => {
+        localStorage.setItem('journal-settings', JSON.stringify(newSettings));
+        setSettings(newSettings);
+      };
+
+      const saveFieldConfig = (newConfig) => {
+        localStorage.setItem('journal-field-config', JSON.stringify(newConfig));
+        setFieldConfig(newConfig);
+      };
+
+      const saveSections = (newSections) => {
+        localStorage.setItem('journal-sections', JSON.stringify(newSections));
+        setSections(newSections);
+      };
+
+      // ─── Entry field updates ───
+      const updateField = useCallback((field, value) => {
+        setEntries(prev => {
+          const existingEntry = prev[currentDate] || {};
+          const existingData = existingEntry.data || existingEntry;
+          return {
+            ...prev,
+            [currentDate]: {
+              ...existingEntry,
+              data: { ...existingData, [field]: value }
+            }
+          };
+        });
+      }, [currentDate]);
+
+      const handleTextareaInput = (e) => {
+        e.target.style.height = 'auto';
+        e.target.style.height = e.target.scrollHeight + 'px';
+      };
+
+      // ─── Field management ───
+      const addNewField = () => {
+        if (!newFieldName.trim()) return;
+        const newField = {
+          id: 'field_' + Date.now(),
+          label: newFieldName.trim(),
+          rows: newFieldRows,
+          section: newFieldSection,
+          sideBySide: newFieldSideBySide,
+          parent: newFieldParent || undefined
+        };
+        saveFieldConfig([...fieldConfig, newField]);
+        setNewFieldName('');
+        setNewFieldRows(1);
+        setNewFieldSideBySide(false);
+        setNewFieldParent('');
+      };
+
+      const removeField = (fieldId) => {
+        // Also remove any sub-fields
+        saveFieldConfig(fieldConfig.filter(f => f.id !== fieldId && f.parent !== fieldId));
+      };
+
+      const saveFieldEdit = (fieldId, newLabel) => {
+        if (!newLabel.trim()) return;
+        saveFieldConfig(fieldConfig.map(f =>
+          f.id === fieldId ? { ...f, label: newLabel.trim() } : f
+        ));
+        setEditingField(null);
+      };
+
+      const toggleSideBySide = (fieldId) => {
+        saveFieldConfig(fieldConfig.map(f =>
+          f.id === fieldId ? { ...f, sideBySide: !f.sideBySide } : f
+        ));
+      };
+
+      const updateFieldRows = (fieldId, newRows) => {
+        saveFieldConfig(fieldConfig.map(f =>
+          f.id === fieldId ? { ...f, rows: newRows } : f
+        ));
+      };
+
+      // ─── Drag and drop ───
+      const handleDragStart = (fieldId) => setDraggedField(fieldId);
+      const handleDragOver = (e) => e.preventDefault();
+      const handleDrop = (targetFieldId) => {
+        if (!draggedField || draggedField === targetFieldId) return;
+        const draggedIndex = fieldConfig.findIndex(f => f.id === draggedField);
+        const targetIndex = fieldConfig.findIndex(f => f.id === targetFieldId);
+        if (draggedIndex === -1 || targetIndex === -1) return;
+        const updated = [...fieldConfig];
+        const [removed] = updated.splice(draggedIndex, 1);
+        updated.splice(targetIndex, 0, removed);
+        saveFieldConfig(updated);
+        setDraggedField(null);
+      };
+
+      // ─── Section management ───
+      const addSection = () => {
+        if (!newSectionName.trim()) return;
+        saveSections([...sections, {
+          id: 'section_' + Date.now(),
+          label: newSectionName.trim(),
+          color: newSectionColor
+        }]);
+        setNewSectionName('');
+      };
+
+      const removeSection = (sectionId) => {
+        if (fieldConfig.some(f => f.section === sectionId)) {
+          alert('Move or delete fields in this section first.');
+          return;
+        }
+        saveSections(sections.filter(s => s.id !== sectionId));
+      };
+
+      // ─── Save entry ───
+      const saveEntry = async (isAutoSave = false) => {
+        const currentEntryData = entries[currentDate];
+        const entry = currentEntryData?.data || currentEntryData;
+
+        if (!entry || !currentDate) {
+          if (!isAutoSave) {
+            setSaveStatus('Enter a date and some content first');
+            setTimeout(() => setSaveStatus(''), 3000);
+          }
+          return;
+        }
+
+        const hasContent = Object.values(entry).some(val => val && typeof val === 'string' && val.trim());
+        if (!hasContent) {
+          if (!isAutoSave) {
+            setSaveStatus('Enter some content before saving');
+            setTimeout(() => setSaveStatus(''), 3000);
+          }
+          return;
+        }
+
+        try {
+          const entryWithConfig = {
+            data: entry,
+            fieldConfig: fieldConfig,
+            savedAt: new Date().toISOString()
+          };
+          await window.storage.set(`journal:${currentDate}`, JSON.stringify(entryWithConfig));
+          if (isAutoSave) {
+            setSaveStatus('Auto-saved');
+            setTimeout(() => setSaveStatus(''), 2000);
+          } else {
+            setSaveStatus('Saved!');
+            setTimeout(() => setSaveStatus(''), 3000);
+          }
+          // Only refresh the date list, don't re-fetch all entry content
+          refreshDateList();
+        } catch (error) {
+          if (!isAutoSave) {
+            setSaveStatus('Error saving');
+            setTimeout(() => setSaveStatus(''), 3000);
+          }
+        }
+      };
+
+      // ─── Navigation ───
+      const loadEntry = (date) => {
+        setCurrentDate(date);
+        setShowSidebar(false);
+      };
+
+      const navigateDate = (direction) => {
+        const currentIndex = savedDates.indexOf(currentDate);
+        if (direction === 'prev' && currentIndex < savedDates.length - 1) {
+          setCurrentDate(savedDates[currentIndex + 1]);
+        } else if (direction === 'next' && currentIndex > 0) {
+          setCurrentDate(savedDates[currentIndex - 1]);
+        }
+      };
+
+      // ─── Export TXT ───
+      const exportToTXT = () => {
+        const currentEntryData = entries[currentDate];
+        const entry = currentEntryData?.data || currentEntryData;
+        if (!entry) return;
+
+        const displayConfig = entries[currentDate]?.fieldConfig || fieldConfig;
+        let content = `LIFE JOURNAL — ${currentDate}\n${'═'.repeat(50)}\n\n`;
+
+        sections.forEach(section => {
+          const sectionFields = displayConfig.filter(f => f.section === section.id && !f.parent);
+          const hasContent = sectionFields.some(f => entry[f.id]?.trim());
+          if (!hasContent) return;
+
+          content += `── ${section.label.toUpperCase()} ──\n\n`;
+          sectionFields.forEach(field => {
+            const val = entry[field.id] || '';
+            if (val.trim()) {
+              content += `${field.label}: ${val}\n`;
+              // Include sub-fields
+              const subs = displayConfig.filter(f => f.parent === field.id);
+              subs.forEach(sub => {
+                const subVal = entry[sub.id] || '';
+                if (subVal.trim()) content += `  ${sub.label}: ${subVal}\n`;
+              });
+              content += '\n';
+            }
+          });
+        });
+
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `journal-${currentDate}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+
+      // ─── Export PDF (via print dialog, with HTML-escaped content) ───
+      const exportToPDF = () => {
+        const currentEntryData = entries[currentDate];
+        const entry = currentEntryData?.data || currentEntryData;
+        if (!entry) return;
+
+        const displayConfig = entries[currentDate]?.fieldConfig || fieldConfig;
+        let html = `<!DOCTYPE html><html><head><style>
+          body{font-family:'DM Sans',Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#1a1a2e;}
+          h1{font-family:'DM Serif Display',Georgia,serif;color:#1a1a2e;border-bottom:2px solid #1a1a2e;padding-bottom:10px;font-size:28px;}
+          h2{color:#555;margin-top:30px;border-bottom:1px solid #ddd;padding-bottom:5px;font-size:18px;text-transform:uppercase;letter-spacing:1px;}
+          .field{margin:12px 0;}
+          .label{font-weight:600;color:#333;display:inline;}
+          .value{margin-top:4px;white-space:pre-wrap;color:#444;}
+          .sub{margin-left:20px;font-size:14px;}
+          p.date{color:#777;font-size:14px;}
+        </style></head><body>`;
+        html += `<h1>Life Journal</h1><p class="date">${escapeHtml(currentDate)}</p>`;
+
+        sections.forEach(section => {
+          const sectionFields = displayConfig.filter(f => f.section === section.id && !f.parent);
+          const hasContent = sectionFields.some(f => entry[f.id]?.trim());
+          if (!hasContent) return;
+
+          html += `<h2>${escapeHtml(section.label)}</h2>`;
+          sectionFields.forEach(field => {
+            const value = entry[field.id] || '';
+            if (value.trim()) {
+              html += `<div class="field"><div class="label">${escapeHtml(field.label)}:</div><div class="value">${escapeHtml(value).replace(/\n/g, '<br>')}</div></div>`;
+              const subs = displayConfig.filter(f => f.parent === field.id);
+              subs.forEach(sub => {
+                const subVal = entry[sub.id] || '';
+                if (subVal.trim()) {
+                  html += `<div class="field sub"><div class="label">${escapeHtml(sub.label)}:</div><div class="value">${escapeHtml(subVal).replace(/\n/g, '<br>')}</div></div>`;
+                }
+              });
+            }
+          });
+        });
+
+        html += '</body></html>';
+        const printWindow = window.open('', '', 'height=600,width=800');
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+          printWindow.print();
+        }
+      };
+
+      // ─── Delete entry ───
+      const deleteEntry = async () => {
+        try {
+          await window.storage.delete(`journal:${currentDate}`);
+          setEntries(prev => {
+            const updated = { ...prev };
+            delete updated[currentDate];
+            return updated;
+          });
+          setSaveStatus('Entry deleted');
+          setTimeout(() => setSaveStatus(''), 3000);
+          setShowDeleteConfirm(false);
+          refreshDateList();
+
+          const remaining = savedDates.filter(d => d !== currentDate);
+          if (remaining.length > 0) {
+            setCurrentDate(remaining[0]);
+          } else {
+            setCurrentDate(new Date().toISOString().split('T')[0]);
+          }
+        } catch (error) {
+          setSaveStatus('Error deleting entry');
+          setTimeout(() => setSaveStatus(''), 3000);
+        }
+      };
+
+      // ─── Computed values ───
+      const availableYears = [...new Set(savedDates.map(d => d.substring(0, 4)))].sort().reverse();
+      const filteredDates = savedDates
+        .filter(d => d.startsWith(selectedYear))
+        .sort((a, b) => sortOrder === 'desc' ? b.localeCompare(a) : a.localeCompare(b));
+
+      const currentEntry = entries[currentDate]?.data || entries[currentDate] || {};
+      const displayFieldConfig = entries[currentDate]?.fieldConfig || fieldConfig;
+
+      // ═══════════════════════════════════════
+      // RENDER
+      // ═══════════════════════════════════════
+      if (isLoading) {
+        return (
+          <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', color: 'var(--text-secondary)' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '32px', fontFamily: "'DM Serif Display', Georgia, serif", marginBottom: '8px', color: 'var(--text-primary)' }}>Life Journal</div>
+              <div>Loading entries...</div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+
+          {/* ─── Delete Confirmation Modal ─── */}
+          {showDeleteConfirm && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+              <div style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '24px', maxWidth: '420px', width: '90%', border: '1px solid var(--border-subtle)' }}>
+                <h2 style={{ margin: '0 0 12px', color: 'var(--accent-red)', fontSize: '20px', fontFamily: "'DM Serif Display', Georgia, serif" }}>Delete Entry?</h2>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: 1.5 }}>
+                  Delete the entry for <strong style={{ color: 'var(--text-primary)' }}>{currentDate}</strong>? This can't be undone.
+                </p>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <button onClick={() => setShowDeleteConfirm(false)} style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={deleteEntry} style={{ background: 'var(--accent-red)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}>Yes, Delete</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── Settings Modal (FIXED: now properly conditional) ─── */}
+          {showSettings && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+              <div style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '24px', maxWidth: '900px', width: '95%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', position: 'sticky', top: 0, background: 'var(--bg-card)', paddingBottom: '16px', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <h2 style={{ margin: 0, fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '24px', color: 'var(--accent-blue)' }}>Settings</h2>
+                  <button onClick={() => setShowSettings(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}><XIcon size={24} /></button>
+                </div>
+
+                {/* General Settings */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h3 style={{ color: 'var(--accent-purple)', marginBottom: '12px', fontSize: '16px', fontWeight: 600 }}>General</h3>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={settings.openToYesterday} onChange={(e) => saveSettings({ ...settings, openToYesterday: e.target.checked })} style={{ width: '18px', height: '18px', accentColor: 'var(--accent-blue)' }} />
+                    <span>Open to yesterday's date by default</span>
+                  </label>
+                </div>
+
+                {/* Manage Fields */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h3 style={{ color: 'var(--accent-green)', marginBottom: '12px', fontSize: '16px', fontWeight: 600 }}>Manage Fields</h3>
+
+                  {/* Add New Field */}
+                  <div style={{ background: 'var(--bg-input)', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+                    <h4 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: 600 }}>Add New Field</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <input type="text" placeholder="Field name" value={newFieldName} onChange={(e) => setNewFieldName(e.target.value)}
+                        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '8px 12px', color: 'var(--text-primary)', outline: 'none' }} />
+                      <select value={newFieldSection} onChange={(e) => setNewFieldSection(e.target.value)}
+                        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '8px 12px', color: 'var(--text-primary)' }}>
+                        {sections.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                      </select>
+                      <select value={newFieldRows} onChange={(e) => setNewFieldRows(parseInt(e.target.value))}
+                        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '8px 12px', color: 'var(--text-primary)' }}>
+                        {[1,2,3,4,5].map(n => <option key={n} value={n}>Start with {n} row{n > 1 ? 's' : ''}</option>)}
+                      </select>
+                      <select value={newFieldParent} onChange={(e) => setNewFieldParent(e.target.value)}
+                        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '8px 12px', color: 'var(--text-primary)' }}>
+                        <option value="">No parent (top-level)</option>
+                        {fieldConfig.filter(f => f.section === newFieldSection && !f.parent).map(f =>
+                          <option key={f.id} value={f.id}>Sub-field of: {f.label}</option>
+                        )}
+                      </select>
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', fontSize: '14px' }}>
+                      <input type="checkbox" checked={newFieldSideBySide} onChange={(e) => setNewFieldSideBySide(e.target.checked)} />
+                      <span>Place side-by-side with previous field</span>
+                    </label>
+                    <button onClick={addNewField}
+                      style={{ marginTop: '12px', background: 'var(--accent-blue)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
+                      Add Field
+                    </button>
+                  </div>
+
+                  {/* Field List */}
+                  {sections.map(section => {
+                    const sectionFields = fieldConfig.filter(f => f.section === section.id && !f.parent);
+                    if (sectionFields.length === 0) return null;
+                    return (
+                      <div key={section.id} style={{ marginBottom: '16px' }}>
+                        <h4 style={{ fontSize: '13px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 8px' }}>{section.label}</h4>
+                        {sectionFields.map(field => (
+                          <div key={field.id}
+                            draggable
+                            onDragStart={() => handleDragStart(field.id)}
+                            onDragOver={handleDragOver}
+                            onDrop={() => handleDrop(field.id)}
+                            style={{ background: 'var(--bg-input)', borderRadius: '6px', padding: '10px 12px', marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'grab', transition: 'background 0.15s', border: '1px solid transparent' }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-input)'}
+                          >
+                            <div style={{ flex: 1 }}>
+                              {editingField === field.id ? (
+                                <input type="text" defaultValue={field.label} autoFocus
+                                  onBlur={(e) => saveFieldEdit(field.id, e.target.value)}
+                                  onKeyDown={(e) => e.key === 'Enter' && saveFieldEdit(field.id, e.target.value)}
+                                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-focus)', borderRadius: '4px', padding: '4px 8px', width: '100%', color: 'var(--text-primary)', outline: 'none' }} />
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ fontWeight: 500 }}>{field.label}</span>
+                                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                                    ({field.rows}r{field.sideBySide ? ', side-by-side' : ''})
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '12px' }}>
+                              <select value={field.rows || 1} onChange={(e) => updateFieldRows(field.id, parseInt(e.target.value))} onClick={e => e.stopPropagation()}
+                                style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '4px', padding: '2px 4px', fontSize: '12px', color: 'var(--text-primary)' }}>
+                                {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                              </select>
+                              <button onClick={() => toggleSideBySide(field.id)} title="Toggle side-by-side"
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: field.sideBySide ? 'var(--accent-blue)' : 'var(--text-muted)', padding: '2px 4px' }}>⇆</button>
+                              <button onClick={() => setEditingField(field.id)} title="Rename"
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '2px 4px' }}>✏️</button>
+                              <button onClick={() => removeField(field.id)} title="Delete"
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '2px 4px' }}>🗑️</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Manage Sections */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h3 style={{ color: 'var(--accent-yellow)', marginBottom: '12px', fontSize: '16px', fontWeight: 600 }}>Manage Sections</h3>
+                  <div style={{ background: 'var(--bg-input)', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <input type="text" placeholder="Section name" value={newSectionName} onChange={(e) => setNewSectionName(e.target.value)}
+                        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '8px 12px', color: 'var(--text-primary)', outline: 'none' }} />
+                      <select value={newSectionColor} onChange={(e) => setNewSectionColor(e.target.value)}
+                        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '8px 12px', color: 'var(--text-primary)' }}>
+                        {Object.keys(SECTION_COLORS).map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+                      </select>
+                    </div>
+                    <button onClick={addSection}
+                      style={{ marginTop: '12px', background: 'var(--accent-blue)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
+                      Add Section
+                    </button>
+                  </div>
+                  {sections.map(section => (
+                    <div key={section.id} style={{ background: 'var(--bg-input)', borderRadius: '6px', padding: '10px 12px', marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: SECTION_COLORS[section.color]?.heading || '#5b8af5' }} />
+                        <span style={{ fontWeight: 500 }}>{section.label}</span>
+                      </div>
+                      <button onClick={() => removeSection(section.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '2px 4px' }}>🗑️</button>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
+                  <button onClick={() => setShowSettings(false)}
+                    style={{ background: 'var(--accent-blue)', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '15px' }}>
+                    Done
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ═══════════════ HEADER ═══════════════ */}
+          <header style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: 0, zIndex: 100 }}>
+            <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+              {/* Left: menu + title */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button onClick={() => setShowSidebar(!showSidebar)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', borderRadius: '6px' }}>
+                  {showSidebar ? <XIcon size={22} /> : <MenuIcon size={22} />}
+                </button>
+                <h1 style={{ margin: 0, fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '22px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                  Life Journal
+                </h1>
+              </div>
+
+              {/* Center: date navigation */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <button onClick={() => navigateDate('prev')}
+                  disabled={savedDates.indexOf(currentDate) === savedDates.length - 1}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', borderRadius: '6px', opacity: savedDates.indexOf(currentDate) === savedDates.length - 1 ? 0.3 : 1 }}>
+                  <ChevLeft size={18} />
+                </button>
+                <input type="date" value={currentDate} onChange={(e) => setCurrentDate(e.target.value)}
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '6px 12px', color: 'var(--text-primary)', outline: 'none', fontSize: '14px' }} />
+                <button onClick={() => navigateDate('next')}
+                  disabled={savedDates.indexOf(currentDate) === 0}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', borderRadius: '6px', opacity: savedDates.indexOf(currentDate) === 0 ? 0.3 : 1 }}>
+                  <ChevRight size={18} />
+                </button>
+              </div>
+
+              {/* Right: actions (desktop) */}
+              <div className="desktop-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button onClick={() => saveEntry(false)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--accent-blue)', color: 'white', border: 'none', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 500, fontSize: '13px' }}>
+                  <SaveIcon size={16} /> Save
+                </button>
+                <button onClick={exportToTXT}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                  <DownloadIcon size={16} /> TXT
+                </button>
+                <button onClick={exportToPDF}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                  <DownloadIcon size={16} /> PDF
+                </button>
+                <button onClick={() => setShowDeleteConfirm(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-input)', color: 'var(--accent-red)', border: '1px solid var(--border-subtle)', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                  <TrashIcon size={16} /> Delete
+                </button>
+                <button onClick={() => setShowSettings(true)}
+                  style={{ background: 'none', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', padding: '7px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                  <GearIcon size={16} />
+                </button>
+              </div>
+
+              {/* Right: actions (mobile) */}
+              <div className="mobile-actions" style={{ display: 'none', alignItems: 'center', gap: '8px' }}>
+                <button onClick={() => saveEntry(false)}
+                  style={{ background: 'var(--accent-blue)', color: 'white', border: 'none', padding: '7px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 500, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <SaveIcon size={16} /> Save
+                </button>
+                <button onClick={() => setShowMobileActions(!showMobileActions)}
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', padding: '7px', borderRadius: '8px', cursor: 'pointer' }}>
+                  ⋯
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile action dropdown */}
+            {showMobileActions && (
+              <div className="mobile-actions" style={{ display: 'none', padding: '0 16px 12px', gap: '6px', flexWrap: 'wrap' }}>
+                <button onClick={() => { exportToTXT(); setShowMobileActions(false); }}
+                  style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Export TXT</button>
+                <button onClick={() => { exportToPDF(); setShowMobileActions(false); }}
+                  style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Export PDF</button>
+                <button onClick={() => { setShowDeleteConfirm(true); setShowMobileActions(false); }}
+                  style={{ background: 'var(--bg-input)', color: 'var(--accent-red)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Delete Entry</button>
+                <button onClick={() => { setShowSettings(true); setShowMobileActions(false); }}
+                  style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Settings</button>
+              </div>
+            )}
+
+            {/* Save status */}
+            {saveStatus && (
+              <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 16px 8px' }}>
+                <div style={{ fontSize: '13px', color: saveStatus.includes('Error') || saveStatus.includes('Enter') ? 'var(--accent-red)' : 'var(--accent-green)' }}>
+                  {saveStatus}
+                </div>
+              </div>
+            )}
+          </header>
+
+          {/* ═══════════════ BODY ═══════════════ */}
+          <div style={{ display: 'flex', minHeight: 'calc(100vh - 60px)' }}>
+
+            {/* ─── Sidebar ─── */}
+            {showSidebar && (
+              <aside style={{ width: '240px', minWidth: '240px', background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-subtle)', padding: '16px', overflowY: 'auto', maxHeight: 'calc(100vh - 60px)', position: 'sticky', top: '60px' }}>
+                <h2 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 12px' }}>Past Entries</h2>
+
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Year</label>
+                  <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '6px 8px', color: 'var(--text-primary)', fontSize: '13px' }}>
+                    {availableYears.length === 0
+                      ? <option value={new Date().getFullYear()}>{new Date().getFullYear()}</option>
+                      : availableYears.map(y => <option key={y} value={y}>{y}</option>)
+                    }
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sort</label>
+                  <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '6px 8px', color: 'var(--text-primary)', fontSize: '13px' }}>
+                    <option value="desc">Newest First</option>
+                    <option value="asc">Oldest First</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  {filteredDates.length === 0 ? (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No entries for {selectedYear}</p>
+                  ) : (
+                    filteredDates.map(date => (
+                      <button key={date} onClick={() => loadEntry(date)}
+                        style={{
+                          width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontFamily: "'DM Sans', sans-serif",
+                          background: date === currentDate ? 'var(--accent-blue)' : 'transparent',
+                          color: date === currentDate ? 'white' : 'var(--text-secondary)',
+                          fontWeight: date === currentDate ? 500 : 400,
+                          transition: 'background 0.15s'
+                        }}
+                        onMouseEnter={e => { if (date !== currentDate) e.target.style.background = 'var(--bg-input)'; }}
+                        onMouseLeave={e => { if (date !== currentDate) e.target.style.background = 'transparent'; }}
+                      >
+                        {date}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </aside>
+            )}
+
+            {/* ─── Main Content ─── */}
+            <main style={{ flex: 1, padding: '24px 16px', overflowY: 'auto' }}>
+              <div style={{ maxWidth: '960px', margin: '0 auto' }}>
+                {sections.map(section => {
+                  const sectionFields = displayFieldConfig.filter(f => f.section === section.id && !f.parent);
+                  if (sectionFields.length === 0) return null;
+
+                  const colors = SECTION_COLORS[section.color] || SECTION_COLORS.blue;
+
+                  return (
+                    <div key={section.id} style={{
+                      background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', marginBottom: '16px',
+                      border: `1px solid ${colors.border}`
+                    }}>
+                      <h2 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 600, color: colors.heading, textTransform: 'uppercase', letterSpacing: '1px', fontFamily: "'DM Sans', sans-serif" }}>
+                        {section.label}
+                      </h2>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {sectionFields.map((field, index) => {
+                          // Skip fields marked as side-by-side (they render with their predecessor)
+                          if (field.sideBySide) return null;
+
+                          const nextField = sectionFields[index + 1];
+                          const isSideBySidePair = nextField?.sideBySide;
+                          const subFields = displayFieldConfig.filter(f => f.parent === field.id);
+
+                          const textareaStyle = {
+                            width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px', padding: '8px 12px', color: 'var(--text-primary)', outline: 'none',
+                            resize: 'none', overflow: 'hidden', fontSize: '14px', lineHeight: '1.5',
+                            transition: 'border-color 0.15s'
+                          };
+
+                          return (
+                            <div key={field.id}>
+                              <div style={isSideBySidePair ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' } : {}}>
+                                {/* Primary field */}
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '4px' }}>{field.label}</label>
+                                  <textarea
+                                    value={currentEntry[field.id] || ''}
+                                    onChange={(e) => { updateField(field.id, e.target.value); handleTextareaInput(e); }}
+                                    onInput={handleTextareaInput}
+                                    onFocus={(e) => e.target.style.borderColor = 'var(--border-focus)'}
+                                    onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
+                                    rows={field.rows || 1}
+                                    style={textareaStyle}
+                                  />
+                                  {/* Sub-fields */}
+                                  {subFields.length > 0 && (
+                                    <div style={{ marginTop: '4px', paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                      {subFields.map(sub => (
+                                        <div key={sub.id}>
+                                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '2px' }}>{sub.label}</label>
+                                          <textarea
+                                            value={currentEntry[sub.id] || ''}
+                                            onChange={(e) => { updateField(sub.id, e.target.value); handleTextareaInput(e); }}
+                                            onInput={handleTextareaInput}
+                                            onFocus={(e) => e.target.style.borderColor = 'var(--border-focus)'}
+                                            onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
+                                            rows={sub.rows || 1}
+                                            style={{ ...textareaStyle, fontSize: '13px' }}
+                                          />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Side-by-side partner */}
+                                {isSideBySidePair && nextField && (
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '4px' }}>{nextField.label}</label>
+                                    <textarea
+                                      value={currentEntry[nextField.id] || ''}
+                                      onChange={(e) => { updateField(nextField.id, e.target.value); handleTextareaInput(e); }}
+                                      onInput={handleTextareaInput}
+                                      onFocus={(e) => e.target.style.borderColor = 'var(--border-focus)'}
+                                      onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
+                                      rows={nextField.rows || 1}
+                                      style={textareaStyle}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </main>
+          </div>
+
+          {/* ─── Responsive CSS ─── */}
+          <style>{`
+            @media (max-width: 768px) {
+              .desktop-actions { display: none !important; }
+              .mobile-actions { display: flex !important; }
+            }
+            @media (min-width: 769px) {
+              .desktop-actions { display: flex !important; }
+              .mobile-actions { display: none !important; }
+            }
+          `}</style>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<LifeJournal />);
+  </script>
+</body>
+</html>
