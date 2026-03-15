@@ -171,6 +171,7 @@
       const [sortOrder, setSortOrder] = useState('desc');
       const [showSettings, setShowSettings] = useState(false);
       const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+      const [showExportModal, setShowExportModal] = useState(false);
       const [showMobileActions, setShowMobileActions] = useState(false);
       const [settings, setSettings] = useState({ openToYesterday: false });
       const [fieldConfig, setFieldConfig] = useState(DEFAULT_FIELDS);
@@ -314,6 +315,7 @@
             setShowSettings(false);
             setShowDeleteConfirm(false);
             setShowMobileActions(false);
+            setShowExportModal(false);
           }
         };
         window.addEventListener('keydown', handleEscape);
@@ -565,46 +567,312 @@
         if (!entry) return;
 
         const displayConfig = entries[currentDate]?.fieldConfig || fieldConfig;
-        let html = `<!DOCTYPE html><html><head><style>
-          body{font-family:'DM Sans',Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#1a1a2e;}
-          h1{font-family:'DM Serif Display',Georgia,serif;color:#1a1a2e;border-bottom:2px solid #1a1a2e;padding-bottom:10px;font-size:28px;}
-          h2{color:#555;margin-top:30px;border-bottom:1px solid #ddd;padding-bottom:5px;font-size:18px;text-transform:uppercase;letter-spacing:1px;}
-          .field{margin:12px 0;}
-          .label{font-weight:600;color:#333;display:inline;}
-          .value{margin-top:4px;white-space:pre-wrap;color:#444;}
-          .sub{margin-left:20px;font-size:14px;}
-          p.date{color:#777;font-size:14px;}
+
+        const sectionColorMap = {
+          blue: { heading: '#5b8af5', border: '#2a3a6e', bg: '#131729' },
+          purple: { heading: '#a78bfa', border: '#3d2a6e', bg: '#1a1329' },
+          green: { heading: '#6ee7a0', border: '#1a4a32', bg: '#0f1f17' },
+          yellow: { heading: '#fbbf24', border: '#4a3a1a', bg: '#1a1710' },
+          red: { heading: '#f87171', border: '#4a1a1a', bg: '#1f1010' },
+          pink: { heading: '#f472b6', border: '#4a1a3a', bg: '#1f1019' }
+        };
+
+        let html = `<!DOCTYPE html><html><head>
+        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+        <style>
+          @page { margin: 20mm 15mm; }
+          * { box-sizing: border-box; }
+          body {
+            font-family: 'DM Sans', sans-serif;
+            background: #0f1117;
+            color: #e2e4ed;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 24px;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 32px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #2a2d3e;
+          }
+          .header h1 {
+            font-family: 'DM Serif Display', Georgia, serif;
+            font-size: 32px;
+            margin: 0 0 4px;
+            color: #e2e4ed;
+            font-weight: 400;
+          }
+          .header .date {
+            font-size: 16px;
+            color: #5b8af5;
+            font-weight: 500;
+          }
+          .section {
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            page-break-inside: avoid;
+          }
+          .section h2 {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin: 0 0 16px;
+          }
+          .field {
+            margin-bottom: 12px;
+          }
+          .field-label {
+            font-size: 11px;
+            font-weight: 500;
+            color: #8b8fa3;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .field-value {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #e2e4ed;
+            white-space: pre-wrap;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+            padding: 8px 12px;
+          }
+          .sub-fields {
+            margin-top: 4px;
+            padding-left: 16px;
+            border-left: 2px solid rgba(167,139,250,0.3);
+          }
+          .sub-field { margin-bottom: 6px; }
+          .sub-field .field-label { font-size: 10px; }
+          .sub-field .field-value { font-size: 13px; padding: 6px 10px; }
+          .side-by-side {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid #2a2d3e;
+            font-size: 11px;
+            color: #5c6078;
+          }
         </style></head><body>`;
-        html += `<h1>Life Journal</h1><p class="date">${escapeHtml(currentDate)}</p>`;
+
+        html += `<div class="header"><h1>Life Journal</h1><div class="date">${escapeHtml(currentDate)}</div></div>`;
 
         sections.forEach(section => {
           const sectionFields = displayConfig.filter(f => f.section === section.id && !f.parent);
           const hasContent = sectionFields.some(f => entry[f.id]?.trim());
           if (!hasContent) return;
 
-          html += `<h2>${escapeHtml(section.label)}</h2>`;
-          sectionFields.forEach(field => {
+          const colors = sectionColorMap[section.color] || sectionColorMap.blue;
+          html += `<div class="section" style="background:${colors.bg};border:1px solid ${colors.border};">`;
+          html += `<h2 style="color:${colors.heading};">${escapeHtml(section.label)}</h2>`;
+
+          sectionFields.forEach((field, index) => {
+            if (field.sideBySide) return;
             const value = entry[field.id] || '';
-            if (value.trim()) {
-              html += `<div class="field"><div class="label">${escapeHtml(field.label)}:</div><div class="value">${escapeHtml(value).replace(/\n/g, '<br>')}</div></div>`;
-              const subs = displayConfig.filter(f => f.parent === field.id);
-              subs.forEach(sub => {
-                const subVal = entry[sub.id] || '';
-                if (subVal.trim()) {
-                  html += `<div class="field sub"><div class="label">${escapeHtml(sub.label)}:</div><div class="value">${escapeHtml(subVal).replace(/\n/g, '<br>')}</div></div>`;
-                }
-              });
+            const nextField = sectionFields[index + 1];
+            const isSideBySidePair = nextField?.sideBySide;
+            const subFields = displayConfig.filter(f => f.parent === field.id);
+
+            if (isSideBySidePair && nextField) {
+              const nextValue = entry[nextField.id] || '';
+              if (value.trim() || nextValue.trim()) {
+                html += `<div class="side-by-side">`;
+                html += `<div class="field"><div class="field-label">${escapeHtml(field.label)}</div><div class="field-value">${escapeHtml(value).replace(/\n/g, '<br>') || '<span style="color:#5c6078">—</span>'}</div></div>`;
+                html += `<div class="field"><div class="field-label">${escapeHtml(nextField.label)}</div><div class="field-value">${escapeHtml(nextValue).replace(/\n/g, '<br>') || '<span style="color:#5c6078">—</span>'}</div></div>`;
+                html += `</div>`;
+              }
+            } else if (value.trim()) {
+              html += `<div class="field"><div class="field-label">${escapeHtml(field.label)}</div><div class="field-value">${escapeHtml(value).replace(/\n/g, '<br>')}</div></div>`;
+              if (subFields.length > 0) {
+                html += `<div class="sub-fields">`;
+                subFields.forEach(sub => {
+                  const subVal = entry[sub.id] || '';
+                  if (subVal.trim()) {
+                    html += `<div class="sub-field"><div class="field-label">${escapeHtml(sub.label)}</div><div class="field-value">${escapeHtml(subVal).replace(/\n/g, '<br>')}</div></div>`;
+                  }
+                });
+                html += `</div>`;
+              }
             }
           });
+
+          html += `</div>`;
         });
 
+        html += `<div class="footer">Life Journal — ${escapeHtml(currentDate)}</div>`;
         html += '</body></html>';
-        const printWindow = window.open('', '', 'height=600,width=800');
+
+        const printWindow = window.open('', '', 'height=700,width=850');
         if (printWindow) {
           printWindow.document.write(html);
           printWindow.document.close();
-          printWindow.print();
+          // Small delay to let fonts load before print dialog
+          printWindow.onload = () => printWindow.print();
         }
+      };
+
+      // ─── Mass Export: JSON backup ───
+      const exportAllJSON = () => {
+        const backup = {
+          exportedAt: new Date().toISOString(),
+          version: '1.0',
+          entryCount: Object.keys(entries).length,
+          entries: entries
+        };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `life-journal-backup-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+
+      // ─── Mass Export: single combined TXT ───
+      const exportAllTXTCombined = () => {
+        const sortedDates = Object.keys(entries).sort();
+        let content = `LIFE JOURNAL — COMPLETE EXPORT\nExported: ${new Date().toISOString().split('T')[0]}\nEntries: ${sortedDates.length}\n${'═'.repeat(50)}\n\n`;
+
+        sortedDates.forEach(date => {
+          const entryData = entries[date];
+          const entry = entryData?.data || entryData;
+          const config = entryData?.fieldConfig || fieldConfig;
+          if (!entry) return;
+
+          content += `\n${'─'.repeat(50)}\n  ${date}\n${'─'.repeat(50)}\n\n`;
+
+          sections.forEach(section => {
+            const sectionFields = config.filter(f => f.section === section.id && !f.parent);
+            const hasContent = sectionFields.some(f => entry[f.id]?.trim());
+            if (!hasContent) return;
+
+            content += `── ${section.label.toUpperCase()} ──\n\n`;
+            sectionFields.forEach(field => {
+              const val = entry[field.id] || '';
+              if (val.trim()) {
+                content += `${field.label}: ${val}\n`;
+                const subs = config.filter(f => f.parent === field.id);
+                subs.forEach(sub => {
+                  const subVal = entry[sub.id] || '';
+                  if (subVal.trim()) content += `  ${sub.label}: ${subVal}\n`;
+                });
+                content += '\n';
+              }
+            });
+          });
+        });
+
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `life-journal-all-${new Date().toISOString().split('T')[0]}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+
+      // ─── Mass Export: individual TXT files (uses a delay loop to trigger downloads) ───
+      const exportAllTXTIndividual = () => {
+        const sortedDates = Object.keys(entries).sort();
+
+        sortedDates.forEach((date, i) => {
+          setTimeout(() => {
+            const entryData = entries[date];
+            const entry = entryData?.data || entryData;
+            const config = entryData?.fieldConfig || fieldConfig;
+            if (!entry) return;
+
+            let content = `LIFE JOURNAL — ${date}\n${'═'.repeat(50)}\n\n`;
+            sections.forEach(section => {
+              const sectionFields = config.filter(f => f.section === section.id && !f.parent);
+              const hasContent = sectionFields.some(f => entry[f.id]?.trim());
+              if (!hasContent) return;
+              content += `── ${section.label.toUpperCase()} ──\n\n`;
+              sectionFields.forEach(field => {
+                const val = entry[field.id] || '';
+                if (val.trim()) {
+                  content += `${field.label}: ${val}\n`;
+                  const subs = config.filter(f => f.parent === field.id);
+                  subs.forEach(sub => {
+                    const subVal = entry[sub.id] || '';
+                    if (subVal.trim()) content += `  ${sub.label}: ${subVal}\n`;
+                  });
+                  content += '\n';
+                }
+              });
+            });
+
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `journal-${date}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }, i * 100); // Stagger downloads to avoid browser blocking
+        });
+      };
+
+      // ─── Import JSON backup ───
+      const importJSON = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          try {
+            const text = await file.text();
+            const backup = JSON.parse(text);
+
+            // Validate structure
+            if (!backup.entries || typeof backup.entries !== 'object') {
+              setSaveStatus('Invalid backup file — no entries found');
+              setTimeout(() => setSaveStatus(''), 4000);
+              return;
+            }
+
+            const dates = Object.keys(backup.entries);
+            let imported = 0;
+            let skipped = 0;
+
+            for (const date of dates) {
+              const entryData = backup.entries[date];
+              // Skip if entry already exists for this date
+              if (entries[date]) {
+                skipped++;
+                continue;
+              }
+              try {
+                await window.storage.set(`journal:${date}`, JSON.stringify(entryData));
+                imported++;
+              } catch {
+                // Skip failed entries
+              }
+            }
+
+            setSaveStatus(`Imported ${imported} entries` + (skipped > 0 ? `, skipped ${skipped} (already exist)` : ''));
+            setTimeout(() => setSaveStatus(''), 5000);
+            loadAllEntries();
+            setShowExportModal(false);
+          } catch (err) {
+            setSaveStatus('Error reading backup file');
+            setTimeout(() => setSaveStatus(''), 4000);
+          }
+        };
+        input.click();
       };
 
       // ─── Delete entry ───
@@ -889,6 +1157,59 @@
             </div>
           )}
 
+          {/* ─── Export / Import Modal ─── */}
+          {showExportModal && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+              <div style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '24px', maxWidth: '520px', width: '95%', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h2 style={{ margin: 0, fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '22px', color: 'var(--accent-blue)' }}>Export & Import</h2>
+                  <button onClick={() => setShowExportModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}><XIcon size={22} /></button>
+                </div>
+
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '0 0 20px' }}>
+                  You have <strong style={{ color: 'var(--text-primary)' }}>{Object.keys(entries).length}</strong> saved entries.
+                </p>
+
+                {/* Backup section */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--accent-green)', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Backup</h3>
+                  <button onClick={() => { exportAllJSON(); }}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '12px 16px', cursor: 'pointer', textAlign: 'left', marginBottom: '8px', color: 'var(--text-primary)' }}>
+                    <div style={{ fontWeight: 500, marginBottom: '2px' }}>Export JSON Backup</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Full backup of all entries with field configs. Use this for migration or disaster recovery.</div>
+                  </button>
+                  <button onClick={importJSON}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '12px 16px', cursor: 'pointer', textAlign: 'left', color: 'var(--text-primary)' }}>
+                    <div style={{ fontWeight: 500, marginBottom: '2px' }}>Import JSON Backup</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Restore entries from a backup file. Existing entries are not overwritten.</div>
+                  </button>
+                </div>
+
+                {/* Text export section */}
+                <div>
+                  <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--accent-purple)', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Text Export</h3>
+                  <button onClick={() => { exportAllTXTCombined(); }}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '12px 16px', cursor: 'pointer', textAlign: 'left', marginBottom: '8px', color: 'var(--text-primary)' }}>
+                    <div style={{ fontWeight: 500, marginBottom: '2px' }}>Export All as Single TXT</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>One readable file with all entries in chronological order.</div>
+                  </button>
+                  <button onClick={() => {
+                    const count = Object.keys(entries).length;
+                    if (count > 30) {
+                      if (!confirm(`This will download ${count} individual files. Your browser may ask for permission. Continue?`)) return;
+                    }
+                    exportAllTXTIndividual();
+                    setShowExportModal(false);
+                  }}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '12px 16px', cursor: 'pointer', textAlign: 'left', color: 'var(--text-primary)' }}>
+                    <div style={{ fontWeight: 500, marginBottom: '2px' }}>Export as Individual TXT Files</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>One file per day — {Object.keys(entries).length} files. Best for archiving.</div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ═══════════════ HEADER ═══════════════ */}
           <header style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: 0, zIndex: 100 }}>
             <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
@@ -931,6 +1252,10 @@
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
                   <DownloadIcon size={16} /> PDF
                 </button>
+                <button onClick={() => setShowExportModal(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-input)', color: 'var(--accent-purple)', border: '1px solid var(--border-subtle)', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                  <DownloadIcon size={16} /> All
+                </button>
                 <button onClick={() => setShowDeleteConfirm(true)}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-input)', color: 'var(--accent-red)', border: '1px solid var(--border-subtle)', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
                   <TrashIcon size={16} /> Delete
@@ -966,6 +1291,8 @@
                   style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Export TXT</button>
                 <button onClick={() => { exportToPDF(); setShowMobileActions(false); }}
                   style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Export PDF</button>
+                <button onClick={() => { setShowExportModal(true); setShowMobileActions(false); }}
+                  style={{ background: 'var(--bg-input)', color: 'var(--accent-purple)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Export/Import All</button>
                 <button onClick={() => { setShowDeleteConfirm(true); setShowMobileActions(false); }}
                   style={{ background: 'var(--bg-input)', color: 'var(--accent-red)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Delete Entry</button>
                 <button onClick={() => { setShowSettings(true); setShowMobileActions(false); }}
