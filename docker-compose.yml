@@ -11,6 +11,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=49182
+      # Set a password to protect your journal (recommended if exposed to network)
+      # - JOURNAL_PASSWORD=your-secret-password-here
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:49182/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]

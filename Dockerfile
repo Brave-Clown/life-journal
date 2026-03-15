@@ -2,25 +2,29 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Create a user matching TrueNAS 'apps' user (UID 568, GID 568)
+RUN addgroup -g 568 -S journal && \
+    adduser -u 568 -S -G journal -h /app journal
 
-# Install dependencies
+# Copy package files and install
+COPY package*.json ./
 RUN npm install --omit=dev
 
 # Copy application files
 COPY server.js .
 COPY public ./public
 
-# Create data directory
-RUN mkdir -p /app/data/entries
+# Create data directory owned by journal user
+RUN mkdir -p /app/data/entries && chown -R journal:journal /app
 
-# Expose port (DIARY = 49182)
+# Switch to non-root user
+USER journal
+
+# Expose port
 EXPOSE 49182
 
-# Health check using node (curl not available in alpine)
+# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
   CMD node -e "require('http').get('http://localhost:49182/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Start the server
 CMD ["node", "server.js"]

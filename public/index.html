@@ -934,6 +934,11 @@
                   style={{ background: 'none', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', padding: '7px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                   <GearIcon size={16} />
                 </button>
+                <button onClick={async () => { await fetch('/api/logout', { method: 'POST' }); window.location.reload(); }}
+                  title="Sign out"
+                  style={{ background: 'none', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', padding: '7px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', fontSize: '13px' }}>
+                  <Icon size={16} d={["M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4","M16 17l5-5-5-5","M21 12H9"]} />
+                </button>
               </div>
 
               {/* Right: actions (mobile) */}
@@ -960,6 +965,8 @@
                   style={{ background: 'var(--bg-input)', color: 'var(--accent-red)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Delete Entry</button>
                 <button onClick={() => { setShowSettings(true); setShowMobileActions(false); }}
                   style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Settings</button>
+                <button onClick={async () => { await fetch('/api/logout', { method: 'POST' }); window.location.reload(); }}
+                  style={{ background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Sign Out</button>
               </div>
             )}
 
@@ -1137,8 +1144,170 @@
       );
     }
 
+    // ─── Setup Screen (first run — create password) ───
+    function SetupScreen({ onComplete }) {
+      const [password, setPassword] = useState('');
+      const [confirm, setConfirm] = useState('');
+      const [error, setError] = useState('');
+      const [loading, setLoading] = useState(false);
+
+      const handleSubmit = async () => {
+        setError('');
+        if (password.length < 6) {
+          return setError('Password must be at least 6 characters');
+        }
+        if (password !== confirm) {
+          return setError('Passwords do not match');
+        }
+        setLoading(true);
+        try {
+          const res = await fetch('/api/setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            onComplete();
+          } else {
+            setError(data.error || 'Setup failed');
+          }
+        } catch {
+          setError('Connection error');
+        }
+        setLoading(false);
+      };
+
+      const inputStyle = { width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '12px 16px', color: 'var(--text-primary)', outline: 'none', fontSize: '15px', marginBottom: '12px', boxSizing: 'border-box' };
+
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '40px', width: '100%', maxWidth: '400px', margin: '16px' }}>
+            <h1 style={{ margin: '0 0 4px', fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '28px', color: 'var(--text-primary)', textAlign: 'center' }}>Life Journal</h1>
+            <p style={{ margin: '0 0 8px', color: 'var(--accent-green)', textAlign: 'center', fontSize: '14px', fontWeight: 500 }}>Welcome — let's secure your journal</p>
+            <p style={{ margin: '0 0 24px', color: 'var(--text-muted)', textAlign: 'center', fontSize: '13px', lineHeight: 1.5 }}>Create a password to protect your entries. You'll need this every time you sign in.</p>
+            <div>
+              <input
+                type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                placeholder="Create password (6+ characters)" autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && document.getElementById('confirm-pw').focus()}
+                style={inputStyle}
+              />
+              <input
+                type="password" id="confirm-pw" value={confirm} onChange={(e) => setConfirm(e.target.value)}
+                placeholder="Confirm password"
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                style={inputStyle}
+              />
+              {error && <p style={{ color: 'var(--accent-red)', fontSize: '13px', margin: '0 0 12px' }}>{error}</p>}
+              <button
+                onClick={handleSubmit} disabled={loading}
+                style={{ width: '100%', background: 'var(--accent-blue)', color: 'white', border: 'none', padding: '12px', borderRadius: '8px', cursor: loading ? 'wait' : 'pointer', fontWeight: 600, fontSize: '15px' }}
+              >
+                {loading ? 'Setting up...' : 'Create Password & Start'}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Login Screen ───
+    function LoginScreen({ onLogin }) {
+      const [password, setPassword] = useState('');
+      const [error, setError] = useState('');
+      const [loading, setLoading] = useState(false);
+
+      const handleSubmit = async (e) => {
+        if (e) e.preventDefault();
+        setLoading(true);
+        setError('');
+        try {
+          const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            onLogin();
+          } else {
+            setError(data.error || 'Login failed');
+          }
+        } catch {
+          setError('Connection error');
+        }
+        setLoading(false);
+      };
+
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '16px', padding: '40px', width: '100%', maxWidth: '380px', margin: '16px' }}>
+            <h1 style={{ margin: '0 0 8px', fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '28px', color: 'var(--text-primary)', textAlign: 'center' }}>Life Journal</h1>
+            <p style={{ margin: '0 0 24px', color: 'var(--text-muted)', textAlign: 'center', fontSize: '14px' }}>Enter your password to continue</p>
+            <div>
+              <input
+                type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e)}
+                placeholder="Password" autoFocus
+                style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '12px 16px', color: 'var(--text-primary)', outline: 'none', fontSize: '15px', marginBottom: '12px', boxSizing: 'border-box' }}
+              />
+              {error && <p style={{ color: 'var(--accent-red)', fontSize: '13px', margin: '0 0 12px' }}>{error}</p>}
+              <button
+                onClick={handleSubmit} disabled={loading}
+                style={{ width: '100%', background: 'var(--accent-blue)', color: 'white', border: 'none', padding: '12px', borderRadius: '8px', cursor: loading ? 'wait' : 'pointer', fontWeight: 600, fontSize: '15px' }}
+              >
+                {loading ? 'Signing in...' : 'Sign In'}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── App wrapper ───
+    function App() {
+      const [authState, setAuthState] = useState('checking'); // checking | setup | login | authenticated
+
+      useEffect(() => {
+        fetch('/api/auth-status')
+          .then(r => r.json())
+          .then(data => {
+            if (data.authenticated) {
+              setAuthState('authenticated');
+            } else if (!data.setupComplete) {
+              setAuthState('setup');
+            } else {
+              setAuthState('login');
+            }
+          })
+          .catch(() => setAuthState('setup'));
+      }, []);
+
+      if (authState === 'checking') {
+        return (
+          <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', color: 'var(--text-secondary)' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '32px', fontFamily: "'DM Serif Display', Georgia, serif", marginBottom: '8px', color: 'var(--text-primary)' }}>Life Journal</div>
+              <div>Loading...</div>
+            </div>
+          </div>
+        );
+      }
+
+      if (authState === 'setup') {
+        return <SetupScreen onComplete={() => setAuthState('authenticated')} />;
+      }
+
+      if (authState === 'login') {
+        return <LoginScreen onLogin={() => setAuthState('authenticated')} />;
+      }
+
+      return <LifeJournal />;
+    }
+
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<LifeJournal />);
+    root.render(<App />);
   </script>
 </body>
 </html>
