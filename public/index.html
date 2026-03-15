@@ -118,52 +118,28 @@
     }
 
     // ─── Default field configuration ───
+    // These are example fields — customize them in Settings to match your life!
     const DEFAULT_FIELDS = [
       { id: 'weight', label: 'Weight', rows: 1, section: 'personal' },
       { id: 'health', label: 'Health', rows: 1, section: 'personal' },
-      { id: 'exerciseDaysYes', label: 'Exercise Days Yes', rows: 1, section: 'personal', sideBySide: true },
-      { id: 'exerciseDaysNo', label: 'Exercise Days No', rows: 1, section: 'personal' },
+      { id: 'exercise', label: 'Exercise', rows: 1, section: 'personal' },
       { id: 'sleep', label: 'Sleep', rows: 1, section: 'personal' },
       { id: 'food', label: 'Food', rows: 1, section: 'personal' },
-      { id: 'drinks', label: 'Drinks', rows: 1, section: 'personal' },
-      { id: 'daysSober', label: 'Days Sober', rows: 1, section: 'personal', sideBySide: true },
-      { id: 'daysNotSober', label: 'Days Not Sober', rows: 1, section: 'personal' },
       { id: 'housework', label: 'Housework/Chores', rows: 1, section: 'personal' },
-      { id: 'homeLab', label: 'Home Lab', rows: 1, section: 'personal' },
       { id: 'books', label: 'Books', rows: 1, section: 'personal' },
       { id: 'movies', label: 'Movies', rows: 1, section: 'personal' },
       { id: 'shows', label: 'Shows', rows: 1, section: 'personal' },
-      { id: 'sleepingMedia', label: 'Sleeping Media', rows: 1, section: 'personal' },
-      { id: 'anime', label: 'Anime', rows: 1, section: 'personal' },
       { id: 'music', label: 'Music', rows: 1, section: 'personal' },
       { id: 'purchases', label: 'Purchases', rows: 1, section: 'personal' },
-      { id: 'games', label: 'Games', rows: 1, section: 'personal' },
-      { id: 'friendEvents', label: 'Friend Events', rows: 1, section: 'personal' },
-      { id: 'familyEvents', label: 'Family Events', rows: 1, section: 'personal' },
-      { id: 'cheryl', label: 'Cheryl', rows: 2, section: 'people' },
-      { id: 'cherylHouses', label: 'Houses', rows: 1, section: 'people', parent: 'cheryl' },
-      { id: 'cherylLand', label: 'Land', rows: 1, section: 'people', parent: 'cheryl' },
-      { id: 'cherylCompany', label: 'Company', rows: 1, section: 'people', parent: 'cheryl' },
-      { id: 'mia', label: 'Mia', rows: 2, section: 'people' },
-      { id: 'patrick', label: 'Patrick', rows: 2, section: 'people' },
-      { id: 'louis', label: 'Louis', rows: 2, section: 'people' },
-      { id: 'mom', label: 'Mom', rows: 2, section: 'people' },
-      { id: 'dad', label: 'Dad', rows: 2, section: 'people' },
-      { id: 'zach', label: 'Zach', rows: 2, section: 'people' },
-      { id: 'austin', label: 'Austin', rows: 2, section: 'people' },
-      { id: 'daniel1', label: 'Daniel', rows: 2, section: 'people' },
-      { id: 'fae', label: 'Fae', rows: 2, section: 'people' },
-      { id: 'brenna', label: 'Brenna', rows: 2, section: 'people' },
-      { id: 'daniel2', label: 'Daniel', rows: 2, section: 'people' },
-      { id: 'grandma', label: 'Grandma', rows: 2, section: 'people' },
-      { id: 'extendedFamily', label: 'Extended Family', rows: 2, section: 'people' },
-      { id: 'bulk', label: 'Bulk', rows: 3, section: 'reflections' },
-      { id: 'politics', label: 'Politics', rows: 3, section: 'reflections' },
+      { id: 'person1', label: 'Person 1', rows: 2, section: 'people' },
+      { id: 'person2', label: 'Person 2', rows: 2, section: 'people' },
+      { id: 'person3', label: 'Person 3', rows: 2, section: 'people' },
+      { id: 'familyNotes', label: 'Family', rows: 2, section: 'people' },
+      { id: 'friendNotes', label: 'Friends', rows: 2, section: 'people' },
+      { id: 'work', label: 'Work', rows: 3, section: 'reflections' },
       { id: 'news', label: 'News', rows: 3, section: 'reflections' },
       { id: 'financial', label: 'Financial', rows: 3, section: 'reflections' },
-      { id: 'workTravelActivities', label: 'Work / Travel / Activities', rows: 3, section: 'reflections' },
-      { id: 'study', label: 'Study', rows: 3, section: 'reflections' },
-      { id: 'issues', label: 'Issues', rows: 3, section: 'reflections' },
+      { id: 'goals', label: 'Goals / Progress', rows: 3, section: 'reflections' },
       { id: 'miscThoughts', label: 'Misc Thoughts or Feelings', rows: 4, section: 'reflections' }
     ];
 
@@ -423,8 +399,25 @@
       };
 
       const toggleSideBySide = (fieldId) => {
+        const idx = fieldConfig.findIndex(f => f.id === fieldId);
+        if (idx === -1) return;
+
+        const field = fieldConfig[idx];
+        const wantsSideBySide = !field.sideBySide;
+
+        if (wantsSideBySide) {
+          // Can't be side-by-side if it's the first field in its section
+          const sectionFields = fieldConfig.filter(f => f.section === field.section && !f.parent);
+          const posInSection = sectionFields.findIndex(f => f.id === fieldId);
+          if (posInSection === 0) return;
+
+          // Can't be side-by-side if the previous field in the section is also side-by-side
+          const prevField = sectionFields[posInSection - 1];
+          if (prevField?.sideBySide) return;
+        }
+
         saveFieldConfig(fieldConfig.map(f =>
-          f.id === fieldId ? { ...f, sideBySide: !f.sideBySide } : f
+          f.id === fieldId ? { ...f, sideBySide: wantsSideBySide } : f
         ));
       };
 
@@ -746,13 +739,26 @@
                     return (
                       <div key={section.id} style={{ marginBottom: '16px' }}>
                         <h4 style={{ fontSize: '13px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 8px' }}>{section.label}</h4>
-                        {sectionFields.map(field => (
+                        {sectionFields.map((field, fieldIdx) => {
+                          // Check if this field CAN be side-by-side
+                          const isFirstInSection = fieldIdx === 0;
+                          const prevField = fieldIdx > 0 ? sectionFields[fieldIdx - 1] : null;
+                          const prevIsSideBySide = prevField?.sideBySide;
+                          const canBeSideBySide = !isFirstInSection && !prevIsSideBySide;
+
+                          return (
                           <div key={field.id}
                             draggable
                             onDragStart={() => handleDragStart(field.id)}
                             onDragOver={handleDragOver}
                             onDrop={() => handleDrop(field.id)}
-                            style={{ background: 'var(--bg-input)', borderRadius: '6px', padding: '10px 12px', marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'grab', transition: 'background 0.15s', border: '1px solid transparent' }}
+                            style={{
+                              background: 'var(--bg-input)', borderRadius: '6px', padding: '10px 12px', marginBottom: '4px',
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'grab',
+                              transition: 'background 0.15s',
+                              border: field.sideBySide ? '1px solid var(--accent-blue)' : '1px solid transparent',
+                              marginLeft: field.sideBySide ? '20px' : '0'
+                            }}
                             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
                             onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-input)'}
                           >
@@ -766,8 +772,13 @@
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                   <span style={{ fontWeight: 500 }}>{field.label}</span>
                                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                                    ({field.rows}r{field.sideBySide ? ', side-by-side' : ''})
+                                    ({field.rows}r)
                                   </span>
+                                  {field.sideBySide && prevField && (
+                                    <span style={{ fontSize: '11px', color: 'var(--accent-blue)', background: 'rgba(91,138,245,0.15)', padding: '1px 6px', borderRadius: '4px' }}>
+                                      paired with {prevField.label}
+                                    </span>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -776,15 +787,17 @@
                                 style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '4px', padding: '2px 4px', fontSize: '12px', color: 'var(--text-primary)' }}>
                                 {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
                               </select>
-                              <button onClick={() => toggleSideBySide(field.id)} title="Toggle side-by-side"
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: field.sideBySide ? 'var(--accent-blue)' : 'var(--text-muted)', padding: '2px 4px' }}>⇆</button>
+                              <button onClick={() => canBeSideBySide || field.sideBySide ? toggleSideBySide(field.id) : null}
+                                title={field.sideBySide ? 'Remove side-by-side pairing' : isFirstInSection ? 'Cannot pair — first field in section' : prevIsSideBySide ? 'Cannot pair — field above is already paired' : 'Pair side-by-side with field above'}
+                                style={{ background: 'none', border: 'none', cursor: canBeSideBySide || field.sideBySide ? 'pointer' : 'not-allowed', fontSize: '16px', color: field.sideBySide ? 'var(--accent-blue)' : (!canBeSideBySide ? 'var(--bg-secondary)' : 'var(--text-muted)'), padding: '2px 4px', opacity: canBeSideBySide || field.sideBySide ? 1 : 0.4 }}>⇆</button>
                               <button onClick={() => setEditingField(field.id)} title="Rename"
                                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '2px 4px' }}>✏️</button>
                               <button onClick={() => removeField(field.id)} title="Delete"
                                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '2px 4px' }}>🗑️</button>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     );
                   })}
