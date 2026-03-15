@@ -568,102 +568,98 @@
 
         const displayConfig = entries[currentDate]?.fieldConfig || fieldConfig;
 
-        const sectionColorMap = {
-          blue: { heading: '#5b8af5', border: '#2a3a6e', bg: '#131729' },
-          purple: { heading: '#a78bfa', border: '#3d2a6e', bg: '#1a1329' },
-          green: { heading: '#6ee7a0', border: '#1a4a32', bg: '#0f1f17' },
-          yellow: { heading: '#fbbf24', border: '#4a3a1a', bg: '#1a1710' },
-          red: { heading: '#f87171', border: '#4a1a1a', bg: '#1f1010' },
-          pink: { heading: '#f472b6', border: '#4a1a3a', bg: '#1f1019' }
+        const sectionAccents = {
+          blue: { heading: '#2c5ea8', border: '#2c5ea8', stripe: '#eef3fc' },
+          purple: { heading: '#6b4fad', border: '#6b4fad', stripe: '#f3eefc' },
+          green: { heading: '#1d7a4a', border: '#1d7a4a', stripe: '#ecf7f0' },
+          yellow: { heading: '#8a6d10', border: '#8a6d10', stripe: '#fdf8ea' },
+          red: { heading: '#b83232', border: '#b83232', stripe: '#fceded' },
+          pink: { heading: '#a83c6e', border: '#a83c6e', stripe: '#fceef4' }
         };
 
         let html = `<!DOCTYPE html><html><head>
-        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
         <style>
-          @page { margin: 20mm 15mm; }
-          * { box-sizing: border-box; }
+          @page { margin: 18mm 16mm; size: letter; }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
           body {
-            font-family: 'DM Sans', sans-serif;
-            background: #0f1117;
-            color: #e2e4ed;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 24px;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+            font-family: 'DM Sans', -apple-system, sans-serif;
+            color: #1a1a2e;
+            font-size: 13px;
+            line-height: 1.5;
           }
           .header {
             text-align: center;
-            margin-bottom: 32px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #2a2d3e;
+            margin-bottom: 28px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #1a1a2e;
           }
           .header h1 {
             font-family: 'DM Serif Display', Georgia, serif;
-            font-size: 32px;
-            margin: 0 0 4px;
-            color: #e2e4ed;
+            font-size: 28px;
             font-weight: 400;
+            color: #1a1a2e;
+            margin-bottom: 2px;
           }
           .header .date {
-            font-size: 16px;
-            color: #5b8af5;
+            font-size: 14px;
             font-weight: 500;
-          }
-          .section {
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
-            page-break-inside: avoid;
-          }
-          .section h2 {
-            font-family: 'DM Sans', sans-serif;
-            font-size: 13px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin: 0 0 16px;
-          }
-          .field {
-            margin-bottom: 12px;
-          }
-          .field-label {
-            font-size: 11px;
-            font-weight: 500;
-            color: #8b8fa3;
-            margin-bottom: 3px;
-            text-transform: uppercase;
+            color: #555;
             letter-spacing: 0.5px;
           }
+          .section {
+            border-left: 4px solid #ccc;
+            padding: 14px 18px;
+            margin-bottom: 18px;
+            page-break-inside: avoid;
+            background: #fff;
+          }
+          .section h2 {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #e0e0e0;
+          }
+          .field { margin-bottom: 10px; }
+          .field-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #777;
+            margin-bottom: 2px;
+          }
           .field-value {
-            font-size: 14px;
+            font-size: 13px;
             line-height: 1.6;
-            color: #e2e4ed;
+            color: #1a1a2e;
             white-space: pre-wrap;
-            background: rgba(0,0,0,0.2);
-            border-radius: 6px;
-            padding: 8px 12px;
+            padding: 6px 10px;
+            border-radius: 4px;
           }
           .sub-fields {
-            margin-top: 4px;
-            padding-left: 16px;
-            border-left: 2px solid rgba(167,139,250,0.3);
+            margin: 4px 0 0 14px;
+            padding-left: 10px;
+            border-left: 2px solid #d8d0f0;
           }
           .sub-field { margin-bottom: 6px; }
-          .sub-field .field-label { font-size: 10px; }
-          .sub-field .field-value { font-size: 13px; padding: 6px 10px; }
+          .sub-field .field-label { font-size: 9px; }
+          .sub-field .field-value { font-size: 12px; padding: 4px 8px; }
           .side-by-side {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px;
+            gap: 10px;
           }
           .footer {
             text-align: center;
-            margin-top: 32px;
-            padding-top: 16px;
-            border-top: 1px solid #2a2d3e;
-            font-size: 11px;
-            color: #5c6078;
+            margin-top: 28px;
+            padding-top: 12px;
+            border-top: 1px solid #ddd;
+            font-size: 10px;
+            color: #999;
           }
         </style></head><body>`;
 
@@ -674,9 +670,9 @@
           const hasContent = sectionFields.some(f => entry[f.id]?.trim());
           if (!hasContent) return;
 
-          const colors = sectionColorMap[section.color] || sectionColorMap.blue;
-          html += `<div class="section" style="background:${colors.bg};border:1px solid ${colors.border};">`;
-          html += `<h2 style="color:${colors.heading};">${escapeHtml(section.label)}</h2>`;
+          const accent = sectionAccents[section.color] || sectionAccents.blue;
+          html += `<div class="section" style="border-left-color:${accent.border};">`;
+          html += `<h2 style="color:${accent.heading};border-bottom-color:${accent.border}20;">${escapeHtml(section.label)}</h2>`;
 
           sectionFields.forEach((field, index) => {
             if (field.sideBySide) return;
@@ -689,18 +685,18 @@
               const nextValue = entry[nextField.id] || '';
               if (value.trim() || nextValue.trim()) {
                 html += `<div class="side-by-side">`;
-                html += `<div class="field"><div class="field-label">${escapeHtml(field.label)}</div><div class="field-value">${escapeHtml(value).replace(/\n/g, '<br>') || '<span style="color:#5c6078">—</span>'}</div></div>`;
-                html += `<div class="field"><div class="field-label">${escapeHtml(nextField.label)}</div><div class="field-value">${escapeHtml(nextValue).replace(/\n/g, '<br>') || '<span style="color:#5c6078">—</span>'}</div></div>`;
+                html += `<div class="field"><div class="field-label">${escapeHtml(field.label)}</div><div class="field-value" style="background:${accent.stripe};">${escapeHtml(value).replace(/\n/g, '<br>') || '—'}</div></div>`;
+                html += `<div class="field"><div class="field-label">${escapeHtml(nextField.label)}</div><div class="field-value" style="background:${accent.stripe};">${escapeHtml(nextValue).replace(/\n/g, '<br>') || '—'}</div></div>`;
                 html += `</div>`;
               }
             } else if (value.trim()) {
-              html += `<div class="field"><div class="field-label">${escapeHtml(field.label)}</div><div class="field-value">${escapeHtml(value).replace(/\n/g, '<br>')}</div></div>`;
+              html += `<div class="field"><div class="field-label">${escapeHtml(field.label)}</div><div class="field-value" style="background:${accent.stripe};">${escapeHtml(value).replace(/\n/g, '<br>')}</div></div>`;
               if (subFields.length > 0) {
                 html += `<div class="sub-fields">`;
                 subFields.forEach(sub => {
                   const subVal = entry[sub.id] || '';
                   if (subVal.trim()) {
-                    html += `<div class="sub-field"><div class="field-label">${escapeHtml(sub.label)}</div><div class="field-value">${escapeHtml(subVal).replace(/\n/g, '<br>')}</div></div>`;
+                    html += `<div class="sub-field"><div class="field-label">${escapeHtml(sub.label)}</div><div class="field-value" style="background:${accent.stripe};">${escapeHtml(subVal).replace(/\n/g, '<br>')}</div></div>`;
                   }
                 });
                 html += `</div>`;
@@ -711,14 +707,13 @@
           html += `</div>`;
         });
 
-        html += `<div class="footer">Life Journal — ${escapeHtml(currentDate)}</div>`;
+        html += `<div class="footer">Life Journal &mdash; ${escapeHtml(currentDate)}</div>`;
         html += '</body></html>';
 
         const printWindow = window.open('', '', 'height=700,width=850');
         if (printWindow) {
           printWindow.document.write(html);
           printWindow.document.close();
-          // Small delay to let fonts load before print dialog
           printWindow.onload = () => printWindow.print();
         }
       };
