@@ -196,6 +196,25 @@ sudo docker run -d --name life-journal \
 
 Your journal data and password are in the ZFS dataset and are never affected by rebuilds.
 
+## Troubleshooting
+
+### Locked Out / Forgot Password
+
+Delete the auth file and restart — you'll get the setup screen again:
+
+```bash
+sudo rm /mnt/tank/apps/life-journal/auth.json
+sudo docker restart life-journal
+```
+
+### Delete Button Not Working
+
+The entry must be saved to the server first. If you just typed into fields without clicking Save, there's nothing on the server to delete. Save the entry first, then delete.
+
+### Container Shows "Unhealthy" in Portainer
+
+This is normal if the healthcheck interval hasn't passed yet. If you can access the journal in your browser, the app is working fine.
+
 ## Backup
 
 ```bash

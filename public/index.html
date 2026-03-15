@@ -65,12 +65,12 @@
       async list(prefix) {
         const params = prefix ? `?prefix=${encodeURIComponent(prefix)}` : '';
         const res = await fetch(`/api/storage/list${params}`);
-        if (!res.ok) throw new Error('Failed to list');
+        if (!res.ok) throw new Error(`Failed to list (${res.status})`);
         return await res.json();
       },
       async get(key) {
         const res = await fetch(`/api/storage/get/${encodeURIComponent(key)}`);
-        if (!res.ok) throw new Error('Failed to get');
+        if (!res.ok) throw new Error(`Failed to get (${res.status})`);
         return await res.json();
       },
       async set(key, value) {
@@ -79,14 +79,14 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, value })
         });
-        if (!res.ok) throw new Error('Failed to set');
+        if (!res.ok) throw new Error(`Failed to set (${res.status})`);
         return await res.json();
       },
       async delete(key) {
         const res = await fetch(`/api/storage/delete/${encodeURIComponent(key)}`, {
           method: 'DELETE'
         });
-        if (!res.ok) throw new Error('Failed to delete');
+        if (!res.ok) throw new Error(`Failed to delete (${res.status})`);
         return await res.json();
       }
     };
@@ -628,8 +628,13 @@
             setCurrentDate(new Date().toISOString().split('T')[0]);
           }
         } catch (error) {
-          setSaveStatus('Error deleting entry');
-          setTimeout(() => setSaveStatus(''), 3000);
+          setShowDeleteConfirm(false);
+          if (error.message && error.message.includes('401')) {
+            window.location.reload(); // Session expired, force re-login
+          } else {
+            setSaveStatus('Error deleting — entry may not be saved yet');
+            setTimeout(() => setSaveStatus(''), 4000);
+          }
         }
       };
 
