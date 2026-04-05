@@ -4,17 +4,17 @@ A self-hosted, password-protected life documentation tool. Track your daily life
 
 ## Features
 
-- **Password Protected** — Optional login with rate-limited authentication
-- **Fully Customizable** — Create your own fields, sections, and layouts
-- **Sub-fields** — Nest fields under parent fields
-- **Side-by-Side** — Place fields next to each other
-- **Drag & Drop** — Reorder fields in settings
-- **Auto-Save** — Saves every 30 seconds when you have content
-- **Export** — Single-day TXT or styled PDF, plus mass export of all entries
-- **Import** — Restore from JSON backups without overwriting existing entries
-- **Date Navigation** — Browse past entries with year filter and sort
-- **Self-Hosted** — Your data stays on your server in simple JSON files
-- **Security Hardened** — CSP headers, no CORS, HttpOnly cookies, path traversal protection
+- **Password Protected** - Optional login with rate-limited authentication
+- **Fully Customizable** - Create your own fields, sections, and layouts
+- **Sub-fields** - Nest fields under parent fields
+- **Side-by-Side** - Place fields next to each other
+- **Drag & Drop** - Reorder fields in settings
+- **Auto-Save** - Saves every 30 seconds when you have content
+- **Export** - Single-day TXT or styled PDF, plus mass export of all entries
+- **Import** - Restore from JSON backups without overwriting existing entries
+- **Date Navigation** - Browse past entries with year filter and sort
+- **Self-Hosted** - Your data stays on your server in simple JSON files
+- **Security Hardened** - CSP headers, no CORS, HttpOnly cookies, path traversal protection
 
 ## Quick Start
 
@@ -168,16 +168,16 @@ life-journal/
 ## API Endpoints
 
 **Public:**
-- `POST /api/login` — Authenticate `{ password }`
-- `POST /api/logout` — End session
-- `GET /api/auth-status` — Check auth state
+- `POST /api/login` - Authenticate `{ password }`
+- `POST /api/logout` - End session
+- `GET /api/auth-status` - Check auth state
 - `GET /health` — Health check
 
 **Protected (requires session):**
-- `GET /api/storage/list?prefix=journal:` — List entries
-- `GET /api/storage/get/:key` — Get entry
-- `POST /api/storage/set` — Save entry `{ key, value }`
-- `DELETE /api/storage/delete/:key` — Delete entry
+- `GET /api/storage/list?prefix=journal:` - List entries
+- `GET /api/storage/get/:key` - Get entry
+- `POST /api/storage/set` - Save entry `{ key, value }`
+- `DELETE /api/storage/delete/:key` - Delete entry
 
 ## Updating
 
